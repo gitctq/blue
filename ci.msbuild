@@ -1,0 +1,55 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Compile" ToolsVersion="4.0" VisualStudioVersion="12.0">
+	<PropertyGroup>
+		<Configuration>Debug</Configuration>
+		<Platform>AnyCPU</Platform>
+		<DefineSolutionProperties>false</DefineSolutionProperties>
+
+		<!-- General Paths -->
+		<RootPath>$(MSBuildProjectDirectory)</RootPath>
+		<SrcPath>$(RootPath)</SrcPath>
+		<Packages>$(SrcPath)\packages</Packages>
+		
+		<TestAssemblyOutputDir>$(SrcPath)\MvcApplicationTest.Tests\bin\$(Configuration)\MvcApplicationTest.Tests.dll</TestAssemblyOutputDir>
+		
+		<MyProgramFiles>$(ProgramW6432)</MyProgramFiles>
+      	<MyProgramFiles Condition="$(MyProgramFiles) == ''">$(ProgramFiles)</MyProgramFiles>
+      	<MyProgramFiles Condition="$(MyProgramFiles) == ''">C:\Program Files\</MyProgramFiles>
+	</PropertyGroup>
+
+	<!-- The Clean Target -->
+	<ItemGroup>
+		<ProjectFiles Include="**\*.csproj" />
+	</ItemGroup>
+
+	<Target Name="Clean">
+		<!-- Clean the source code projects -->
+		<MSBuild Projects="@(ProjectFiles)" ContinueOnError="false" Targets="Clean" Properties="Configuration=$(Configuration)" />
+	</Target>
+	
+	<!-- The LoadNuGetPackages Target -->
+	<ItemGroup>
+		<NuGetPackageConfigs Include="$(MSBuildStartupDirectory)\**\packages.config" />
+	</ItemGroup>
+
+	<Target Name="LoadNuGetPackages">
+		<Message Importance="high" Text="Retrieving packages for %(NuGetPackageConfigs.Identity)" />
+		<Exec Command="&quot;$(SrcPath)\.nuget\nuget.exe&quot; restore $(SrcPath)\MvcApplicationTest.sln" />
+		<!-- Exec Command="&quot;$(SrcPath)\.nuget\nuget.exe&quot; install &quot;%(NuGetPackageConfigs.Identity)&quot; -o &quot;$(SrcPath)\packages&quot;" / -->
+	</Target>
+
+	<!-- The Compile Target -->
+	<Target Name="Compile" DependsOnTargets="Clean;LoadNuGetPackages">
+		<Message Importance="high" Text="Compiling core projects" />
+		<MSBuild Projects="$(SrcPath)\MvcApplicationTest.sln" />
+	</Target>
+
+	<Target Name="CodeCoverage" DependsOnTargets="Compile">
+		<Message Importance="high" Text="Attempting VS 2013 Code Coverage via VSTest.console.exe" />
+		<Message Importance="normal" Text="Failure of this target in no way should hinder the build." />
+		<Exec IgnoreExitCode="True" ContinueOnError="True" command="&quot;$(SrcPath)\.jenkinskit\JenkinsKit.exe&quot; codecoverage &quot;$(TestAssemblyOutputDir)&quot; &quot;$(SrcPath)\Coverage.xml&quot;" />
+	</Target>
+
+	<!-- The Jenkins Target -->
+	<Target Name="Jenkins" DependsOnTargets="LoadNuGetPackages;Clean;Compile;CodeCoverage">
+	</Target>
+</Project>
